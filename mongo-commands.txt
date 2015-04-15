@@ -1,0 +1,22 @@
+mongoimport --host d7 --port 27017 --db alokn --collection cities-location --type csv --file ~/pythonwebapps/geolocations-bounding-api/worldcitiespop.csv --headerline
+
+
+iconv -f ISO-8859-1 -t utf-8 worldcitiespop.csv %3E wcp.csv
+
+check primer:
+http://blog.mongolab.com/2014/08/a-primer-on-geospatial-data-and-mongodb/
+
+convert csv to json for 
+
+
+{
+   <location field>: {
+      $geoWithin: {
+         $geometry: {
+            type: <"Polygon" or "MultiPolygon"> ,
+            coordinates: [ <coordinates> ]
+         }
+      }
+   }
+}
+
