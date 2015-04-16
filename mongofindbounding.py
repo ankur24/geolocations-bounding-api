@@ -20,6 +20,12 @@ docs = [doc.loc for doc in cities.find({"loc": {"$geoWithin": {"$box": [[1.5, 42
 #print docs
 if len(docs) > 10:
     #docsa =np.array(docs)
+    # normalize dataset for easier parameter selection
+    X = StandardScaler().fit_transform(docs)
+    # connectivity matrix for structured Ward
+    connectivity = kneighbors_graph(X, n_neighbors=10, include_self=False)
+    # make connectivity symmetric
+    connectivity = 0.5 * (connectivity + connectivity.T)
     average_linkage = cluster.AgglomerativeClustering(
         linkage="average", affinity="cityblock", n_clusters=10,
         connectivity=connectivity)
