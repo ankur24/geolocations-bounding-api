@@ -1,45 +1,79 @@
+from flask import Flask
+from flask import request,Response
+import json
+import os
 
-#docs = [doc for doc in cities.find({"loc": {"$within": {"$box": [[2, 2], [5, 6]]}}})]
+app = Flask(__name__, static_url_path='')
 
-#docs = [doc for doc in cities.find({"loc": {"$geoWithin": {"$box": [[2, 2], [5, 6]]}}})]
 
-#give list geolocation points output
-#list of clustered list of geopoints
-from sklearn import cluster
-from sklearn.preprocessing import StandardScaler
-from pymongo import MongoClient, GEO2D
-import numpy as np
-import collections
+@app.route('/wc/')
+def wcroot():
+    return app.send_static_file('wordcloud_modular_ec2.html')
 
-#mongohost = "ds049170.mongolab.com:49170/commondb"
-#mongoport = 49170
-client = MongoClient("mongodb://u:p@ds049170.mongolab.com:49170/commondb")
-db = client.commondb
-cities = db.cities
 
-docs = [doc.loc for doc in cities.find({"loc": {"$geoWithin": {"$box": [[1.5, 42], [2, 45]]}}})]
-#print docs
-if len(docs) > 10:
-    #docsa =np.array(docs)
-    # normalize dataset for easier parameter selection
-    X = StandardScaler().fit_transform(docs)
-    # connectivity matrix for structured Ward
-    connectivity = kneighbors_graph(X, n_neighbors=10, include_self=False)
-    # make connectivity symmetric
-    connectivity = 0.5 * (connectivity + connectivity.T)
-    average_linkage = cluster.AgglomerativeClustering(
-        linkage="average", affinity="cityblock", n_clusters=10,
-        connectivity=connectivity)
-    average_linkage.fit(docs)
-    y_pred = average_linkage.labels_.astype(np.int)
-    print pool(docs, y_pred)
-else:
-    print zip(docs, 0*len(docs))
+@app.route('/')
+def indexroot():
+    return app.send_static_file('index.html')
 
-def pool(docsa, y_pred):
-    tens = collections.defaultdict(lambda: [[0,0],0])
-    for i in len(docs):
-        tens[y_pred[i]][0][0] += docs[i][0]
-        tens[y_pred[i]][1][1] += docs[i][1]
-        tens[y_pred[i]][2] += 1
-    return tens
+
+
+#@app.route('/lib/<path:path>')
+#def send_foo(path):
+#    return send_from_directory('lib', path)
+
+@app.route("/cluster/combined/<brand>/<gram>/")
+def hello_combined(brand, gram):
+    base = "/home/ubuntu/pythonwebapps/json/"
+    with open(base+"combined__themes_output-v2.json", 'r') as f:
+        jdict = json.loads(f.read())
+        wordlist = jdict[brand][gram]
+        text,size = zip(*wordlist)
+        size = [ e/10.0 for e in size]
+        if gram != 'uni':
+            text = map(lambda e: '-'.join(e), text)
+
+        rdict = { 'text': text, 'size': size}
+        r = Response(json.dumps(rdict), mimetype='application/json')
+        r.headers["Access-Control-Allow-Origin"] = '*'
+        return r
+
+    #with open("/home/alok/r-work-dir/topic_models/data_uniTRUE"+i+'.json', 'r') as f:
+    #    r = Response(f.read(), mimetype='application/json')
+    #    r.headers["Access-Control-Allow-Origin"] = '*'
+    #    return r
+
+@app.route("/cluster/lda/<gram>/")
+def hello_lda(gram):
+    if gram == 'uni':
+        whichgram = 'TRUE'
+    elif gram == 'bi':
+        whichgram = 'FALSE'
+    elif gram == 'tri':
+        whichgram = "tri"
+    fname = "British Gasdata_uni" + whichgram + "1.json"
+    base = "/home/alok/r-work-dir/topic_models"
+    with open(base + '/' + fname, 'r') as f:
+        r = Response(f.read(), mimetype='application/json')
+        r.headers["Access-Control-Allow-Origin"] = '*'
+        return r
+
+#SSE,nPower
+@app.route("/negatives/lda/<gram>/<brand>")
+def hello_negative_lda(gram, brand):
+    tdict = {'SSE':6,'nPower':4,'British Gas':1}
+    if brand == 'BG':
+        brand = "British Gas"
+    if gram == 'uni':
+        whichgram = 'TRUE'
+    elif gram == 'bi':
+        whichgram = 'FALSE'
+    fname = brand+"data_uni"+gram+str(tdict[brand])+ ".json"
+    base = "/home/alok/r-work-dir/topic_models/extreme"
+    with open(base + '/' + fname, 'r') as f:
+        r = Response(f.read(), mimetype='application/json')
+        r.headers["Access-Control-Allow-Origin"] = '*'
+        return r
+
+
+if __name__ == "__main__":
+    app.run(debug=True, host="0.0.0.0", port=80)
