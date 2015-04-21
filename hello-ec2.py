@@ -8,25 +8,30 @@ from sklearn.preprocessing import StandardScaler
 from pymongo import MongoClient, GEO2D
 import numpy as np
 import collections
+import traceback
 
 app = Flask(__name__, static_url_path='')
 
-def pool(docsa, y_pred):
+def pool(docs, y_pred):
     tens = collections.defaultdict(lambda: [[0,0],0])
     for i in xrange(len(docs)):
         tens[y_pred[i]][0][0] += docs[i][0]
         tens[y_pred[i]][0][1] += docs[i][1]
         tens[y_pred[i]][1] += 1
-    return tens
+    for k,v in tens.iteritems():
+        tens[k][0] = [v[0][0]/float(v[1]) , v[0][1]/float(v[1])]
+    return tens.values()
 
-@app.route("/api/points", methods=['get')
-def getclusteredpoints(brand, gram):
+@app.route("/api/points", methods=['get'])
+def getclusteredpoints():
     try:
-        bl = map(float, request.form['bl'].split(','))
-        tr = map(float, request.form['tr'].split(','))
+        print request.args['bl'],request.args['tr']
+        bl = map(float, request.args['bl'].split(','))
+        tr = map(float, request.args['tr'].split(','))
     except:
+        print traceback.format_exc()
         return Response('{}', mimetype='application/json', headers={"Access-Control-Allow-Origin":'*'})
-    client = MongoClient("mongodb://u:p@ds049170.mongolab.com:49170/commondb")
+    client = MongoClient("mongodb://user:pass@ds049170.mongolab.com:49170/commondb")
     db = client.commondb
     cities = db.cities
     
@@ -48,7 +53,7 @@ def getclusteredpoints(brand, gram):
         y_pred = average_linkage.labels_.astype(np.int)
         rjsonobj = pool(docs, y_pred)
     else:
-        rjsonobj = print zip(docs, 0*len(docs))
+        rjsonobj = zip(docs, 1*len(docs))
     r = Response(json.dumps(rjsonobj), mimetype='application/json')
     r.headers["Access-Control-Allow-Origin"] = '*'
     return r
